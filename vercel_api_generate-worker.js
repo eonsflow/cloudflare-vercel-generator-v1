@@ -1,6 +1,12 @@
-import fs from 'fs';
-import path from 'path';
 import fetch from 'node-fetch';
+
+const workerTemplate = `
+addEventListener('fetch', event => {
+  event.respondWith(
+    fetch('__WEBAPP_URL__')
+  )
+})
+`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,16 +20,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing Web App URL' });
     }
 
-    const templatePath = path.resolve(process.cwd(), 'worker-template.js');
-    const scriptContent = fs.readFileSync(templatePath, 'utf8');
-    const replacedScript = scriptContent.replace(/__WEBAPP_URL__/g, webAppUrl);
+    const replacedScript = workerTemplate.replace(/__WEBAPP_URL__/g, webAppUrl);
 
     const cfRes = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/workers/scripts/worker_user_${Date.now()}`,
+      \`https://api.cloudflare.com/client/v4/accounts/\${process.env.CF_ACCOUNT_ID}/workers/scripts/worker_user_\${Date.now()}\`,
       {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${process.env.CF_API_TOKEN}`,
+          'Authorization': \`Bearer \${process.env.CF_API_TOKEN}\`,
           'Content-Type': 'application/javascript',
         },
         body: replacedScript,
