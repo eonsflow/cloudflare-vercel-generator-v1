@@ -24,7 +24,9 @@ export default async function handler(req, res) {
 
   let webAppUrl = "";
   try {
-    const body = await req.json();
+    import getRawBody from 'raw-body';
+    const rawBody = await getRawBody(req);
+    const body = JSON.parse(rawBody.toString("utf8"));
     webAppUrl = body.webAppUrl;
     console.log("✅ Body 파싱 완료:", body);
   } catch (err) {
