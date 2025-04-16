@@ -1,50 +1,64 @@
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import fetch from 'node-fetch';
 
-exports.handler = async (event) => {
+const templatePath = path.resolve('./template.html');
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { webAppUrl } = req.body;
+
+  if (!webAppUrl || !webAppUrl.startsWith('https://script.google.com')) {
+    return res.status(400).json({ error: '유효한 Web App URL을 입력해주세요.' });
+  }
+
+  const workerScript = `
+addEventListener('fetch', event => {
+  event.respondWith(
+    fetch('${webAppUrl}', {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    })
+  );
+});
+`;
+
   try {
-    const body = JSON.parse(event.body || '{}');
-    const { webAppUrl } = body;
-
-    if (!webAppUrl) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Missing Web App URL' }),
-      };
-    }
-
-    const scriptPath = path.join(__dirname, '../../worker-template.js');
-    const scriptContent = fs.readFileSync(scriptPath, 'utf8');
-    const replacedScript = scriptContent.replace(/__WEBAPP_URL__/g, webAppUrl);
-
-    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/workers/scripts/worker_user_${Date.now()}`, {
+    const workerRes = await fetch(\`https://api.cloudflare.com/client/v4/accounts/\${process.env.CF_ACCOUNT_ID}/workers/scripts/worker_user_\${Date.now()}\`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/javascript',
-        'Authorization': `Bearer ${process.env.CF_API_TOKEN}`
+        'Authorization': \`Bearer \${process.env.CF_API_TOKEN}\`,
+        'Content-Type': 'application/javascript'
       },
-      body: replacedScript
+      body: workerScript
     });
 
-    const result = await response.json();
+    const result = await workerRes.json();
 
-    if (result.success) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ status: '✅ Worker 생성 완료', result })
-      };
-    } else {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ status: '❌ Cloudflare 응답 실패', result })
-      };
+    if (!result.success) {
+      return res.status(500).json({ error: 'Cloudflare Worker 생성 실패', detail: result });
     }
+
+    const cloudflareUrl = \`https://\${process.env.CF_SUBDOMAIN}.workers.dev\`;
+    const encodedWebAppUrl = encodeURIComponent(webAppUrl);
+
+    // 템플릿 읽기 및 모든 대상 치환
+    const rawTemplate = fs.readFileSync(templatePath, 'utf8');
+    const finalHtml = rawTemplate
+      .replace(/__SHEET_URL__/g, webAppUrl)
+      .replace(/__WORKER_URL__/g, cloudflareUrl)
+      .replace(/https:\/\/script\.google\.com\/macros\/s\/[^"')]+/g, webAppUrl)
+      .replace(/https:\/\/eonslab\.cuztoz\.workers\.dev/g, cloudflareUrl)
+      .replace(/encodeURIComponent\("https:\/\/script\.google\.com\/macros\/s\/[^"')]+\)/g, \`"\${encodedWebAppUrl}"\`);
+
+    res.setHeader('Content-Disposition', 'attachment; filename="자동설치파일.html"');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(finalHtml);
+
   } catch (err) {
-    console.error('❌ Netlify 함수 오류:', err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: '서버 내부 오류 발생', detail: err.message })
-    };
+    console.error('❌ 에러 발생:', err);
+    res.status(500).json({ error: '서버 오류 발생', detail: err.message });
   }
-};
+}
