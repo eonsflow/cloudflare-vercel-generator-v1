@@ -7,6 +7,17 @@ const templatePath = path.resolve('./template.html');
 const workerTemplatePath = path.resolve('./worker-template.js');
 
 export default async function handler(req, res) {
+  console.log("🌐 ENV:", {
+    CF_API_TOKEN: !!process.env.CF_API_TOKEN,
+    CF_ACCOUNT_ID: !!process.env.CF_ACCOUNT_ID,
+    CF_SUBDOMAIN: process.env.CF_SUBDOMAIN
+  });
+
+  console.log("📦 Template Paths", {
+    template: fs.existsSync(templatePath),
+    worker: fs.existsSync(workerTemplatePath)
+  });
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
