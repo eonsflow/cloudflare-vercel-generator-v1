@@ -24,7 +24,7 @@ export default async function handler(req, res) {
 
   let webAppUrl = "";
   try {
-    import getRawBody from 'raw-body';
+    
     const rawBody = await getRawBody(req);
     const body = JSON.parse(rawBody.toString("utf8"));
     webAppUrl = body.webAppUrl;
