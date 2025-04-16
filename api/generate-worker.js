@@ -11,7 +11,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { webAppUrl } = req.body;
+  let webAppUrl = "";
+  try {
+    const body = await req.json();
+    webAppUrl = body.webAppUrl;
+    console.log("✅ Body 파싱 완료:", body);
+  } catch (err) {
+    console.error("❌ Body 파싱 실패:", err);
+    return res.status(500).json({ error: "❌ JSON 파싱 실패", detail: err.message });
+  }
 
   if (!webAppUrl || !webAppUrl.startsWith('https://script.google.com')) {
     return res.status(400).json({ error: '유효한 Web App URL을 입력해주세요.' });
