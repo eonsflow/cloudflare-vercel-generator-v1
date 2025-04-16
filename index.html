@@ -1,77 +1,70 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>Cloudflare Worker 자동 생성기</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            text-align: center;
-        }
-        button {
-            padding: 10px 20px;
-            margin-top: 10px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        input {
-            padding: 8px;
-            width: 300px;
-            font-size: 14px;
-        }
-        #result {
-            margin-top: 20px;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>자동설치 다운로더</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f9f9f9;
+    }
+    .container {
+      text-align: center;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px 0;
+      width: 300px;
+    }
+    #result {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>✅ Cloudflare Worker 자동 생성기</h1>
-        <p>아래에 고객의 Google Web App URL을 입력하세요:</p>
-        <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/...">
-        <br>
-        <button id="generateBtn">🛠 워커 생성하기</button>
-        <div id="result"></div>
-    </div>
+  <div class="container">
+    <h1>📦 자동설치 다운로더</h1>
+    <p>배포된 Web App URL을 입력하세요:</p>
+    <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/..." />
+    <br />
+    <button id="generateBtn">🔧 설치파일 생성하기</button>
+    <div id="result"></div>
+  </div>
 
-    <script>
-        document.getElementById("generateBtn").addEventListener("click", async () => {
-            const url = document.getElementById("webAppUrl").value.trim();
-            const resultDiv = document.getElementById("result");
-
-            if (!url) {
-                resultDiv.innerHTML = "⛔ Web App URL을 입력해주세요.";
-                return;
-            }
-
-            try {
-                const res = await fetch("/api/generate-worker", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ webAppUrl: url }),
-                });
-
-                const data = await res.json();
-
-                if (data.success) {
-                    resultDiv.innerHTML = "✅ 정상적으로 배포되었습니다.";
-                } else {
-                    resultDiv.innerHTML = `❌ 오류 발생: ${data.error}`;
-                }
-            } catch (err) {
-                resultDiv.innerHTML = `❌ 네트워크 오류: ${err.message}`;
-            }
+  <script>
+    document.getElementById("generateBtn").addEventListener("click", async () => {
+      const webAppUrl = document.getElementById("webAppUrl").value.trim();
+      const resultDiv = document.getElementById("result");
+      if (!webAppUrl) {
+        resultDiv.innerText = "⛔ Web App URL을 입력해주세요.";
+        return;
+      }
+      resultDiv.innerText = "⏳ 설치파일을 생성 중입니다...";
+      try {
+        const res = await fetch("/api/generate-worker", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ webAppUrl })
         });
-    </script>
+        if (!res.ok) throw new Error("다운로드 실패");
+
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "자동설치파일.html";
+        a.click();
+        resultDiv.innerText = "✅ 설치파일 다운로드 완료!";
+      } catch (err) {
+        resultDiv.innerText = `❌ 오류 발생: ${err.message}`;
+      }
+    });
+  </script>
 </body>
 </html>
